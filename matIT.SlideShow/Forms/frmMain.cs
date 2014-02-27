@@ -469,8 +469,17 @@ namespace matIT.SlideShow
                 img = db.getLastPickedUpImage();
                 if (_frontTexture != null && _frontTexture.Image != null && (img.FileId == _frontTexture.Image.FileId || img.FileId == _lastViewedLastPickedUpImageId))
                 {
-                    if (log.IsInfoEnabled) log.Info("-> Same picture looked up again, selecting random one.");
-                    img = db.getRandomImage();
+                    if (log.IsInfoEnabled) log.Info("-> Same picture looked up again, selecting random one?");
+                    if (Boolean.Parse(MAppConfig.getInstance().getConfigValue("slideShow", "viewAllPicturesIfNoNewOne", "true")))
+                    {
+                        if (log.IsInfoEnabled) log.Info("-> Emergency mode is randomly from all images.");
+                        img = db.getRandomImage();
+                    }
+                    else
+                    {
+                        if (log.IsInfoEnabled) log.Info("-> Emergency mode is to view default background (in this case last image is viewed again).");
+                        return img;
+                    }
                 }
                 else
                 {
@@ -586,6 +595,22 @@ namespace matIT.SlideShow
                 if (log.IsDebugEnabled) log.Debug("-> Load and resize image.");
                 Image originalImage = Image.FromFile(img.FilePath);
                 Bitmap reImage = reSize(originalImage, new Size(this._panel.Width, this._panel.Height));
+
+                //Wirite the ID inside
+                if (Boolean.Parse(MAppConfig.getInstance().getConfigValue("slideShow", "viewImageID", "false")))
+                {
+                    Graphics g = Graphics.FromImage(reImage);
+                    String imageID = img.FileId.ToString();
+                    if (MAppConfig.getInstance().getConfigValue("slideShow", "viewImageID_Mode", "1") == "1")
+                        imageID = img.FilePath.Substring(img.FilePath.LastIndexOf("\\")+1).ToLower().Replace("IMG","").Replace(".jpg","").Replace("_","");
+                    Brush backGround = new SolidBrush(Color.FromArgb(Int32.Parse(MAppConfig.getInstance().getConfigValue("slideShow", "viewImageID_BackgroundTransparency", "190")), 0, 0, 0));
+                    g.FillRectangle(backGround, new RectangleF(0, reImage.Height - Int32.Parse(MAppConfig.getInstance().getConfigValue("slideShow", "viewImageID_Height", "190")), reImage.Width, Int32.Parse(MAppConfig.getInstance().getConfigValue("slideShow", "viewImageID_Height", "190"))));
+                    StringFormat strFormat = new StringFormat();
+                    strFormat.Alignment = StringAlignment.Center;
+                    strFormat.LineAlignment = StringAlignment.Center;
+                    g.DrawString(imageID, new System.Drawing.Font("Arial", Int32.Parse(MAppConfig.getInstance().getConfigValue("slideShow", "viewImageID_FontSize", "24"))), Brushes.White, new RectangleF(0, reImage.Height - Int32.Parse(MAppConfig.getInstance().getConfigValue("slideShow", "viewImageID_Height", "190")), reImage.Width, Int32.Parse(MAppConfig.getInstance().getConfigValue("slideShow", "viewImageID_Height", "190"))), strFormat);
+                    g.Dispose();
+                }
 
                 //Save the image to the texture
                 if (log.IsDebugEnabled) log.Debug("-> Save the image to the back texture.");

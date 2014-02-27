@@ -173,6 +173,11 @@ namespace matIT.SlideShow.Pickup
         private bool _deleteCopiedFiles = false;
         private List<string> _validExtensions = new List<string>();
 
+        private bool _exif_rewrite = true;
+        private String _EXIF_Author = "Freiw. Feuerwehr Schwanheim";
+        private String _EXIF_Copyright = "Copyright %y by Freiw. Feuerwehr Schwanhem";
+        private String _EXIF_Comment = "http://www.ff-schwanheim.de";
+
         public SPickupWorker()
         {
             _working = false;
@@ -190,6 +195,10 @@ namespace matIT.SlideShow.Pickup
             _validExtensions = MAppConfig.getInstance().getConfigValues("pickupProcess", "validExtension");
             _deleteCopiedFiles = Boolean.Parse(MAppConfig.getInstance().getConfigValue("pickupProcess", "deleteCopiedFiles", "false"));
             _writeTimeDifferenceSeconds = Int32.Parse(MAppConfig.getInstance().getConfigValue("pickupProcess", "writeTimeDifferenceSeconds", @"10"));
+            _exif_rewrite = Boolean.Parse(MAppConfig.getInstance().getConfigValue("pickupProcess", "exif_rewrite", @"true"));
+            _EXIF_Author = MAppConfig.getInstance().getConfigValue("pickupProcess", "EXIF_Author", @"");
+            _EXIF_Copyright = MAppConfig.getInstance().getConfigValue("pickupProcess", "EXIF_Copyright", @"");
+            _EXIF_Comment = MAppConfig.getInstance().getConfigValue("pickupProcess", "EXIF_Comment", @"");
         }
 
         #endregion
@@ -272,6 +281,30 @@ namespace matIT.SlideShow.Pickup
                                         if (exifPair != null && exifPair.First != null && exifPair.Second != null) log.Debug("EXIF-Meta '" + exifPair.First + "' -> '" + exifPair.Second + "'");
                                     }
                                 }
+                                //Exif überschreiben
+                                if (_exif_rewrite)
+                                {
+                                    byte[] temp,temp2;
+                                    //Artist
+                                    temp = Encoding.ASCII.GetBytes(_EXIF_Author);
+                                    temp2 = new byte[temp.Length + 1];
+                                    temp.CopyTo(temp2, 0);
+                                    temp2[temp2.Length-1] = 0x0;
+                                    exif.setTag(0x013b, temp2.Length, 0x2, temp2);
+                                    //Copyright
+                                    temp = Encoding.ASCII.GetBytes(_EXIF_Copyright.Replace("%Y",DateTime.Now.ToString("y")));
+                                    temp2 = new byte[temp.Length + 1];
+                                    temp.CopyTo(temp2, 0);
+                                    temp2[temp2.Length-1] = 0x0;
+                                    exif.setTag(0x8298, temp2.Length, 0x2, temp2);
+                                    //UserComment
+                                    temp = Encoding.ASCII.GetBytes(_EXIF_Comment);
+                                    temp2 = new byte[temp.Length + 1];
+                                    temp.CopyTo(temp2, 0);
+                                    temp2[temp2.Length-1] = 0x0;
+                                    exif.setTag(0x9286, temp2.Length, 0x2, temp2);
+                                }
+
                                 //Create rotation infos
                                 RotateFlipType flip = RotateFlipType.RotateNoneFlipNone;
                                 if (exif["Orientation"] != null)
@@ -293,7 +326,8 @@ namespace matIT.SlideShow.Pickup
                                 {
                                     if (log.IsDebugEnabled) log.Debug("   -> It's not needed.");
                                     //Copy the file from source to target
-                                    File.Copy(fileName, _saveFolder + Path.DirectorySeparatorChar + file.Name);
+                                    //File.Copy(fileName, _saveFolder + Path.DirectorySeparatorChar + file.Name);
+                                    bmp.Save(_saveFolder + Path.DirectorySeparatorChar + file.Name, System.Drawing.Imaging.ImageFormat.Jpeg);
                                     if (log.IsInfoEnabled) log.Info("-> Picked up '" + fileName + "'");
                                 }
                                 bmp.Dispose();
